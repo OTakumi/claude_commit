@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "claude_commit"
 version = "0.1.0"
 edition = "2024"
 
