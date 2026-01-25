@@ -1,0 +1,8 @@
+# Example configuration file for commit message generation
+# Usage: cargo run -- --config=commit-config.toml
+
+prompt = """
+以下のgit diffの内容を分析して、詳細なコミットメッセージを日本語で生成してください。
+1行目にサマリー、その後に変更の詳細を箇条書きで含めてください。
+メッセージのみを出力し、説明や追加のテキストは含めないでください。
+"""
