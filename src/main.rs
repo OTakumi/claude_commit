@@ -58,6 +58,13 @@ async fn main() -> Result<()> {
     // Get staged changes
     let diff = get_git_diff()?;
 
+    // Check if there are staged changes
+    if diff.trim().is_empty() {
+        eprintln!("Error: No staged changes found.");
+        eprintln!("Please stage your changes with 'git add' before generating a commit message.");
+        std::process::exit(1);
+    }
+
     // Generate commit message using Claude with spinner display
     let message = if args.json {
         // JSON mode: no spinner
