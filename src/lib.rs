@@ -15,10 +15,11 @@
 //! ```no_run
 //! use claude_commit::{config::load_config, git::get_git_diff, claude::generate_message};
 //!
-//! # fn main() -> anyhow::Result<()> {
+//! # #[tokio::main]
+//! # async fn main() -> anyhow::Result<()> {
 //! let config = load_config("prompt.toml")?;
 //! let diff = get_git_diff()?;
-//! let message = generate_message(&diff, &config)?;
+//! let message = generate_message(&diff, &config).await?;
 //! println!("Generated message: {}", message);
 //! # Ok(())
 //! # }
