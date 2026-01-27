@@ -3,7 +3,7 @@
 //! This module handles communication with Claude AI to generate
 //! commit messages based on git diffs and prompt templates.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use tokio::process::Command;
 
 use crate::config::Config;
@@ -21,7 +21,9 @@ use crate::config::Config;
 ///
 /// # Errors
 ///
+/// * Prompt size exceeds 1MB (combined diff + prompt template)
 /// * Claude command execution fails
+/// * Claude command returns non-zero exit code
 /// * Unable to parse Claude output
 ///
 /// # Example
@@ -43,13 +45,34 @@ use crate::config::Config;
 pub async fn generate_message(diff: &str, config: &Config) -> Result<String> {
     let prompt = build_prompt(diff, config);
 
+    // Validate prompt size to prevent excessive resource usage
+    const MAX_PROMPT_SIZE: usize = 1_000_000; // 1MB
+    if prompt.len() > MAX_PROMPT_SIZE {
+        anyhow::bail!(
+            "Prompt size ({} bytes) exceeds maximum allowed size ({} bytes). \
+             Consider reducing the size of staged changes or splitting into multiple commits.",
+            prompt.len(),
+            MAX_PROMPT_SIZE
+        );
+    }
+
     let output = Command::new("claude")
         .args(["-p", &prompt])
         .output()
         .await
-        .expect("Claude failed");
+        .context("Failed to execute 'claude' command. Make sure Claude CLI is installed and in PATH")?;
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    if !output.status.success() {
+        anyhow::bail!(
+            "Claude command failed with exit code {:?}\nstderr: {}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .to_string())
 }
 
 /// Build a prompt by combining the prompt template and git diff
