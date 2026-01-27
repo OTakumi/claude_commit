@@ -114,14 +114,16 @@ async fn generate_with_spinner(diff: &str, config: &Config) -> Result<String> {
 
         while spinner_running_clone.load(Ordering::Relaxed) {
             print!("\r{} Claude is generating...", spinner_chars[idx]);
-            io::stdout().flush().unwrap();
+            // Ignore flush errors (stdout might be closed)
+            let _ = io::stdout().flush();
             idx = (idx + 1) % spinner_chars.len();
             sleep(Duration::from_millis(80)).await;
         }
 
         // Clear spinner line
         print!("\r\x1b[K");
-        io::stdout().flush().unwrap();
+        // Ignore flush errors
+        let _ = io::stdout().flush();
     });
 
     // Generate message
@@ -129,7 +131,8 @@ async fn generate_with_spinner(diff: &str, config: &Config) -> Result<String> {
 
     // Stop spinner
     spinner_running.store(false, Ordering::Relaxed);
-    spinner_task.await.unwrap();
+    // Ignore spinner task errors (non-critical)
+    let _ = spinner_task.await;
 
     println!("✓ コミットメッセージの生成が完了しました");
 
