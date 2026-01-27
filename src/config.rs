@@ -38,6 +38,7 @@ pub struct Config {
 /// * File does not exist
 /// * Invalid TOML format
 /// * Missing required fields
+/// * Prompt field is empty or whitespace-only
 ///
 /// # Example
 ///
@@ -54,6 +55,16 @@ pub fn load_config(config_path: &str) -> Result<Config> {
     let content = fs::read_to_string(config_path)
         .context(format!("Failed to read config file: {}", config_path))?;
     let config: Config = toml::from_str(&content).context("Failed to parse config file as TOML")?;
+
+    // Validate prompt is not empty or whitespace-only
+    if config.prompt.trim().is_empty() {
+        anyhow::bail!(
+            "Configuration error: 'prompt' field cannot be empty or whitespace-only. \
+             Please provide a valid prompt template in {}",
+            config_path
+        );
+    }
+
     Ok(config)
 }
 
