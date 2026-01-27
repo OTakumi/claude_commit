@@ -7,7 +7,6 @@
 
 use anyhow::{Context, Result};
 use std::fs;
-use std::os::unix::process::CommandExt;
 use std::process::Command;
 
 /// Get git diff from the staging area
@@ -38,9 +37,18 @@ pub fn get_git_diff() -> Result<String> {
     let output = Command::new("git")
         .args(["diff", "--cached"])
         .output()
-        .expect("failed to get git diff");
+        .context("Failed to execute git command. Make sure git is installed and in PATH")?;
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    if !output.status.success() {
+        anyhow::bail!(
+            "Git diff command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .to_string())
 }
 
 /// Write the commit message to .git/COMMIT_MSG_GENERATED
@@ -83,13 +91,8 @@ pub fn write_commit_message(message: &str) -> Result<String> {
 
 /// Execute git commit -v -e -F to launch an editor
 ///
-/// This function replaces the current process with the git commit command,
-/// allowing the user to review and edit the generated message.
-///
-/// # Process Replacement
-///
-/// This function uses `CommandExt::exec()` which replaces the current process,
-/// so it does not return on success. The function only returns if an error occurs.
+/// This function executes the git commit command with the generated message,
+/// allowing the user to review and edit it in their configured editor.
 ///
 /// # Arguments
 ///
@@ -97,16 +100,14 @@ pub fn write_commit_message(message: &str) -> Result<String> {
 ///
 /// # Returns
 ///
-/// * `Result<()>` - Only returns if an error occurs during exec
+/// * `Result<()>` - Ok if commit succeeds, Err otherwise
 ///
 /// # Errors
 ///
 /// * Failed to execute git command
 /// * Git not found in PATH
-///
-/// # Platform Support
-///
-/// Unix-like systems only (uses `std::os::unix::process::CommandExt`)
+/// * User aborted the commit
+/// * Commit validation failed
 ///
 /// # Example
 ///
@@ -115,19 +116,25 @@ pub fn write_commit_message(message: &str) -> Result<String> {
 ///
 /// # fn main() -> anyhow::Result<()> {
 /// let msg_file = ".git/COMMIT_MSG_GENERATED";
-/// // This will replace the current process with git commit
 /// run_git_commit(msg_file)?;
-/// // Code after this line will not execute on success
+/// println!("Commit successful!");
 /// # Ok(())
 /// # }
 /// ```
 pub fn run_git_commit(msg_file: &str) -> Result<()> {
-    let err = Command::new("git")
+    let status = Command::new("git")
         .args(["commit", "-v", "-e", "-F", msg_file])
-        .exec();
+        .status()
+        .context("Failed to execute git commit command")?;
 
-    // exec() does not return on success, so reaching here means an error
-    Err(anyhow::anyhow!("Failed to execute git commit: {}", err))
+    if !status.success() {
+        anyhow::bail!(
+            "Git commit command failed with exit code: {:?}",
+            status.code()
+        );
+    }
+
+    Ok(())
 }
 
 // Note: No tests for this module as all functions depend on external git commands
