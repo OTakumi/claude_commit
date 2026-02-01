@@ -16,11 +16,23 @@ use std::fs;
 /// Generate a concise git commit message based on the following diff.
 /// Use conventional commits format (feat:, fix:, docs:, etc.).
 /// """
+///
+/// # Optional: Maximum combined size of prompt + diff in bytes (default: 1,000,000)
+/// max_prompt_size = 1000000
 /// ```
 #[derive(Deserialize)]
 pub struct Config {
     /// Prompt template to send to Claude
     pub prompt: String,
+    /// Maximum combined size of prompt template and git diff in bytes
+    /// Defaults to 1MB (1,000,000 bytes)
+    #[serde(default = "default_max_prompt_size")]
+    pub max_prompt_size: usize,
+}
+
+/// Default maximum prompt size: 1MB
+fn default_max_prompt_size() -> usize {
+    1_000_000
 }
 
 /// Load configuration from a TOML file

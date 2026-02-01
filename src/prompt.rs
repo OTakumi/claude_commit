@@ -5,8 +5,8 @@
 
 use anyhow::Result;
 
-/// Maximum allowed prompt size in bytes (1MB)
-pub const MAX_PROMPT_SIZE: usize = 1_000_000;
+/// Default maximum allowed prompt size in bytes (1MB)
+pub const DEFAULT_MAX_PROMPT_SIZE: usize = 1_000_000;
 
 /// Build a prompt by combining the prompt template and git diff
 ///
@@ -21,6 +21,7 @@ pub const MAX_PROMPT_SIZE: usize = 1_000_000;
 ///
 /// * `diff` - Git diff content
 /// * `prompt_template` - Prompt template from configuration
+/// * `max_size` - Maximum allowed combined size in bytes
 ///
 /// # Returns
 ///
@@ -28,7 +29,7 @@ pub const MAX_PROMPT_SIZE: usize = 1_000_000;
 ///
 /// # Errors
 ///
-/// * Combined prompt size exceeds `MAX_PROMPT_SIZE` (1MB)
+/// * Combined prompt size exceeds `max_size`
 ///
 /// # Example
 ///
@@ -37,19 +38,19 @@ pub const MAX_PROMPT_SIZE: usize = 1_000_000;
 ///
 /// let prompt_template = "Generate a commit message:";
 /// let diff = "+added line";
-/// let prompt = build_prompt(diff, prompt_template).unwrap();
+/// let prompt = build_prompt(diff, prompt_template, 1_000_000).unwrap();
 /// assert_eq!(prompt, "Generate a commit message:\n\n+added line");
 /// ```
-pub fn build_prompt(diff: &str, prompt_template: &str) -> Result<String> {
+pub fn build_prompt(diff: &str, prompt_template: &str, max_size: usize) -> Result<String> {
     // Validate size BEFORE allocating the combined string
     let combined_size = prompt_template.len() + 2 + diff.len(); // 2 = "\n\n"
 
-    if combined_size > MAX_PROMPT_SIZE {
+    if combined_size > max_size {
         anyhow::bail!(
             "Prompt size ({} bytes) exceeds maximum allowed size ({} bytes). \
              Consider reducing the size of staged changes or splitting into multiple commits.",
             combined_size,
-            MAX_PROMPT_SIZE
+            max_size
         );
     }
 
@@ -67,7 +68,7 @@ mod tests {
         let prompt_template = "Generate a commit message:";
 
         // Act - execute the function
-        let result = build_prompt(diff, prompt_template).unwrap();
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE).unwrap();
 
         // Assert - verify the result
         assert_eq!(
@@ -83,7 +84,7 @@ mod tests {
         let prompt_template = "Generate a commit message:";
 
         // Act
-        let result = build_prompt(diff, prompt_template).unwrap();
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE).unwrap();
 
         // Assert - should still include prompt with empty diff
         assert_eq!(result, "Generate a commit message:\n\n");
@@ -96,7 +97,7 @@ mod tests {
         let prompt_template = "";
 
         // Act
-        let result = build_prompt(diff, prompt_template).unwrap();
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE).unwrap();
 
         // Assert - should have two newlines before diff
         assert_eq!(result, "\n\ndiff --git a/file.txt b/file.txt\n+new line");
@@ -109,7 +110,7 @@ mod tests {
         let prompt_template = "";
 
         // Act
-        let result = build_prompt(diff, prompt_template).unwrap();
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE).unwrap();
 
         // Assert - should be just two newlines
         assert_eq!(result, "\n\n");
@@ -123,7 +124,7 @@ mod tests {
         let prompt_template = "Prompt with 絵文字 🚀 and\nmultiple\nlines";
 
         // Act
-        let result = build_prompt(diff, prompt_template).unwrap();
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE).unwrap();
 
         // Assert - all special characters should be preserved
         assert!(result.contains("絵文字 🚀"));
@@ -139,7 +140,7 @@ mod tests {
         let prompt_template = "Line 1\nLine 2\nLine 3";
 
         // Act
-        let result = build_prompt(diff, prompt_template).unwrap();
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE).unwrap();
 
         // Assert - newlines in prompt should be preserved
         assert_eq!(result, "Line 1\nLine 2\nLine 3\n\n+added line");
@@ -152,7 +153,7 @@ mod tests {
         let prompt_template = "Generate commit:";
 
         // Act
-        let result = build_prompt(&large_diff, prompt_template).unwrap();
+        let result = build_prompt(&large_diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE).unwrap();
 
         // Assert - should handle large inputs without panic
         assert!(result.starts_with("Generate commit:\n\ndiff --git"));
@@ -167,7 +168,7 @@ mod tests {
         let diff = "+added line\n-removed line";
 
         // Act
-        let result = build_prompt(diff, prompt_template);
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE);
 
         // Assert - should succeed
         assert!(result.is_ok());
@@ -177,11 +178,11 @@ mod tests {
     fn test_build_prompt_exactly_at_limit() {
         // Arrange - exactly 1MB total size
         let prompt_template = "Generate:";
-        let diff_size = MAX_PROMPT_SIZE - prompt_template.len() - 2; // 2 = "\n\n"
+        let diff_size = DEFAULT_MAX_PROMPT_SIZE - prompt_template.len() - 2; // 2 = "\n\n"
         let diff = "+".repeat(diff_size);
 
         // Act
-        let result = build_prompt(&diff, prompt_template);
+        let result = build_prompt(&diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE);
 
         // Assert - should succeed (exactly at limit)
         assert!(result.is_ok());
@@ -191,17 +192,17 @@ mod tests {
     fn test_build_prompt_just_over_limit() {
         // Arrange - 1 byte over 1MB
         let prompt_template = "Generate:";
-        let diff_size = MAX_PROMPT_SIZE - prompt_template.len() - 2 + 1; // 2 = "\n\n"
+        let diff_size = DEFAULT_MAX_PROMPT_SIZE - prompt_template.len() - 2 + 1; // 2 = "\n\n"
         let diff = "+".repeat(diff_size);
 
         // Act
-        let result = build_prompt(&diff, prompt_template);
+        let result = build_prompt(&diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE);
 
         // Assert - should fail
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("exceeds maximum allowed size"));
-        assert!(error_msg.contains(&MAX_PROMPT_SIZE.to_string()));
+        assert!(error_msg.contains(&DEFAULT_MAX_PROMPT_SIZE.to_string()));
     }
 
     #[test]
@@ -211,7 +212,7 @@ mod tests {
         let diff = "+".repeat(10_000_000);
 
         // Act
-        let result = build_prompt(&diff, prompt_template);
+        let result = build_prompt(&diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE);
 
         // Assert - should fail with correct size in error
         assert!(result.is_err());
@@ -228,7 +229,7 @@ mod tests {
         let diff = "変更内容 🚀";
 
         // Act
-        let result = build_prompt(diff, prompt_template);
+        let result = build_prompt(diff, prompt_template, DEFAULT_MAX_PROMPT_SIZE);
 
         // Assert - should succeed and count bytes correctly
         assert!(result.is_ok());
@@ -244,7 +245,7 @@ mod tests {
         let diff = "Y".repeat(500_000);
 
         // Act
-        let result = build_prompt(&diff, &prompt_template);
+        let result = build_prompt(&diff, &prompt_template, DEFAULT_MAX_PROMPT_SIZE);
 
         // Assert - verify error message contains helpful information
         assert!(result.is_err());
@@ -253,5 +254,36 @@ mod tests {
         assert!(error_msg.contains("1000000 bytes")); // max size
         assert!(error_msg.contains("Consider reducing"));
         assert!(error_msg.contains("splitting into multiple commits"));
+    }
+
+    #[test]
+    fn test_build_prompt_custom_size_limit() {
+        // Arrange - custom size limit (500 bytes)
+        let prompt_template = "Generate:";
+        let diff = "+".repeat(400);
+        let custom_limit = 500;
+
+        // Act
+        let result = build_prompt(&diff, prompt_template, custom_limit);
+
+        // Assert - should succeed (within custom limit)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_build_prompt_custom_size_limit_exceeded() {
+        // Arrange - custom size limit (100 bytes)
+        let prompt_template = "Generate:";
+        let diff = "+".repeat(200);
+        let custom_limit = 100;
+
+        // Act
+        let result = build_prompt(&diff, prompt_template, custom_limit);
+
+        // Assert - should fail (exceeds custom limit)
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("exceeds maximum allowed size"));
+        assert!(error_msg.contains(&custom_limit.to_string()));
     }
 }
