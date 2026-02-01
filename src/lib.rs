@@ -9,6 +9,7 @@
 //! - [`output`] - Output structures for JSON formatting
 //! - [`claude`] - Claude AI integration for message generation
 //! - [`git`] - Git operations (diff, commit, etc.)
+//! - [`validation`] - Input validation for size limits
 //!
 //! # Example
 //!
@@ -29,3 +30,4 @@ pub mod claude;
 pub mod config;
 pub mod git;
 pub mod output;
+pub mod validation;
