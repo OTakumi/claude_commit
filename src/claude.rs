@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use tokio::process::Command;
 
 use crate::config::Config;
+use crate::validation::validate_prompt_size;
 
 /// Generate a commit message using Claude Code
 ///
@@ -43,18 +44,10 @@ use crate::config::Config;
 /// # }
 /// ```
 pub async fn generate_message(diff: &str, config: &Config) -> Result<String> {
-    let prompt = build_prompt(diff, config);
+    // Validate prompt size BEFORE allocation to prevent excessive memory usage
+    validate_prompt_size(&config.prompt, diff)?;
 
-    // Validate prompt size to prevent excessive resource usage
-    const MAX_PROMPT_SIZE: usize = 1_000_000; // 1MB
-    if prompt.len() > MAX_PROMPT_SIZE {
-        anyhow::bail!(
-            "Prompt size ({} bytes) exceeds maximum allowed size ({} bytes). \
-             Consider reducing the size of staged changes or splitting into multiple commits.",
-            prompt.len(),
-            MAX_PROMPT_SIZE
-        );
-    }
+    let prompt = build_prompt(diff, config);
 
     let output = Command::new("claude")
         .args(["-p", &prompt])
