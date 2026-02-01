@@ -6,3 +6,8 @@ prompt = """
 1行目にサマリー、その後に変更の詳細を箇条書きで含めてください。
 メッセージのみを出力し、説明や追加のテキストは含めないでください。
 """
+
+# Optional: Maximum combined size of prompt template and git diff in bytes
+# Default: 1,000,000 bytes (1MB)
+# Increase this value if you need to handle very large diffs
+# max_prompt_size = 1000000

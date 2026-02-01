@@ -36,6 +36,7 @@ use crate::prompt::build_prompt;
 /// # async fn main() -> anyhow::Result<()> {
 /// let config = Config {
 ///     prompt: "Generate a commit message:".to_string(),
+///     max_prompt_size: 1_000_000,
 /// };
 /// let diff = "diff --git a/file.txt b/file.txt\n+new line";
 /// let message = generate_message(diff, &config).await?;
@@ -44,7 +45,7 @@ use crate::prompt::build_prompt;
 /// # }
 /// ```
 pub async fn generate_message(diff: &str, config: &Config) -> Result<String> {
-    let prompt = build_prompt(diff, &config.prompt)?;
+    let prompt = build_prompt(diff, &config.prompt, config.max_prompt_size)?;
 
     let output = Command::new("claude")
         .args(["-p", &prompt])
