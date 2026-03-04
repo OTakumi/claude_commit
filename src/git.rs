@@ -1,12 +1,6 @@
-//! Git operations for commit message generation
-//!
-//! This module provides functions to interact with git:
-//! - Get staged diffs
-//! - Write commit messages
-//! - Execute git commit with editor
-
 use anyhow::{Context, Result};
 use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
 
 /// Get git diff from the staging area
@@ -46,9 +40,7 @@ pub fn get_git_diff() -> Result<String> {
         );
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .to_string())
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 /// Write the commit message to .git/COMMIT_MSG_GENERATED
@@ -123,7 +115,7 @@ pub fn write_commit_message(message: &str) -> Result<String> {
 /// ```
 pub fn run_git_commit(msg_file: &str) -> Result<()> {
     let status = Command::new("git")
-        .args(["commit", "-v", "-e", "-F", msg_file])
+        .args(["commit", "-v", "-e", "-F", msg_file, "--no-verify"])
         .status()
         .context("Failed to execute git commit command")?;
 
@@ -137,5 +129,41 @@ pub fn run_git_commit(msg_file: &str) -> Result<()> {
     Ok(())
 }
 
-// Note: No tests for this module as all functions depend on external git commands
-// and system state. Integration tests would be more appropriate for testing these.
+/// Run the pre-commit hook if it exists
+///
+/// Executes `.git/hooks/pre-commit` before Claude generates a commit message.
+/// This catches linter/formatter errors early, avoiding unnecessary API calls.
+/// If the hook does not exist, silently succeeds.
+///
+/// # Returns
+///
+/// * `Result<()>` - Ok if hook succeeds or does not exist, Err if hook fails
+///
+/// # Errors
+///
+/// * Hook script fails to execute
+/// * Hook exits with non-zero status
+pub fn run_pre_commit_hook() -> Result<()> {
+    let hook_path = PathBuf::from(".git/hooks/pre-commit");
+
+    if !hook_path.exists() {
+        return Ok(());
+    }
+
+    eprintln!("Running pre-commit hook...");
+
+    let status = Command::new(&hook_path)
+        .status()
+        .context("Failed to execute pre-commit hook")?;
+
+    if !status.success() {
+        anyhow::bail!(
+            "Pre-commit hook failed with exit code: {:?}\n\
+             Fix the issues reported by the pre-commit hook and try again.",
+            status.code()
+        );
+    }
+
+    eprintln!("Pre-commit hook passed.");
+    Ok(())
+}

@@ -13,7 +13,7 @@ use tokio::time::{Duration, sleep};
 use claude_commit::{
     claude::generate_message,
     config::{Config, load_config},
-    git::{get_git_diff, run_git_commit, write_commit_message},
+    git::{get_git_diff, run_git_commit, run_pre_commit_hook, write_commit_message},
     output::CommitMessage,
 };
 
@@ -38,8 +38,10 @@ struct Args {
 /// 1. Parse command-line arguments
 /// 2. Load configuration file
 /// 3. Get git diff from staging area
-/// 4. Generate commit message using Claude (with spinner display)
-/// 5. Output as JSON or write to .git/COMMIT_MSG_GENERATED and execute git commit
+/// 4. Run pre-commit hook (skip if not present)
+/// 5. Re-fetch git diff (reflect formatter auto-fixes)
+/// 6. Generate commit message using Claude (with spinner display)
+/// 7. Output as JSON or write to .git/COMMIT_MSG_GENERATED and execute git commit
 ///
 /// # Errors
 ///
@@ -62,6 +64,17 @@ async fn main() -> Result<()> {
     if diff.trim().is_empty() {
         eprintln!("Error: No staged changes found.");
         eprintln!("Please stage your changes with 'git add' before generating a commit message.");
+        std::process::exit(1);
+    }
+
+    // Run pre-commit hook before calling Claude API
+    run_pre_commit_hook()?;
+
+    // Re-fetch diff to reflect any auto-fixes by formatters
+    let diff = get_git_diff()?;
+    if diff.trim().is_empty() {
+        eprintln!("Error: No staged changes remain after pre-commit hook.");
+        eprintln!("The pre-commit hook may have unstaged all changes.");
         std::process::exit(1);
     }
 
