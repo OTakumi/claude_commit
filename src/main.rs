@@ -7,8 +7,8 @@ use anyhow::Result;
 use clap::Parser;
 
 use claude_commit::{
-    cli::{Args, Commands, find_config_file, run_init},
     claude::generate_message,
+    cli::{Args, Commands, find_config_file, run_init},
     config::load_config,
     git::{get_git_diff, run_pre_commit_hook},
     output::CommitMessage,
