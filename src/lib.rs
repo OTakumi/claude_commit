@@ -27,7 +27,9 @@
 //! ```
 
 pub mod claude;
+pub mod cli;
 pub mod config;
 pub mod git;
 pub mod output;
 pub mod prompt;
+pub mod ui;

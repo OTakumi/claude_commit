@@ -219,13 +219,13 @@ mod tests {
         let error_msg = result.unwrap_err().to_string();
         // Total: 10,000,000 (diff) + 2 (separator) + 9 (prompt) = 10,000,011
         assert!(error_msg.contains("10000011")); // actual size
-        assert!(error_msg.contains("1000000"));   // max size
+        assert!(error_msg.contains("1000000")); // max size
     }
 
     #[test]
     fn test_build_prompt_unicode_characters() {
         // Arrange - Unicode characters (multi-byte)
-        let prompt_template = "日本語プロンプト 🎉";  // Multi-byte characters
+        let prompt_template = "日本語プロンプト 🎉"; // Multi-byte characters
         let diff = "変更内容 🚀";
 
         // Act

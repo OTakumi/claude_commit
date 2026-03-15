@@ -51,7 +51,9 @@ pub async fn generate_message(diff: &str, config: &Config) -> Result<String> {
         .args(["-p", &prompt])
         .output()
         .await
-        .context("Failed to execute 'claude' command. Make sure Claude CLI is installed and in PATH")?;
+        .context(
+            "Failed to execute 'claude' command. Make sure Claude CLI is installed and in PATH",
+        )?;
 
     if !output.status.success() {
         anyhow::bail!(
@@ -61,8 +63,5 @@ pub async fn generate_message(diff: &str, config: &Config) -> Result<String> {
         );
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .to_string())
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
-

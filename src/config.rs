@@ -35,6 +35,22 @@ fn default_max_prompt_size() -> usize {
     1_000_000
 }
 
+/// Default content for a newly generated configuration file
+pub const DEFAULT_CONFIG_CONTENT: &str = r#"# claude_commit configuration file
+# Usage: claude_commit --config <path>  OR place this file at .claude_commit.toml
+
+prompt = """
+以下のgit diffの内容を分析して、詳細なコミットメッセージを日本語で生成してください。
+1行目にサマリー、その後に変更の詳細を箇条書きで含めてください。
+メッセージのみを出力し、説明や追加のテキストは含めないでください。
+"""
+
+# Optional: Maximum combined size of prompt template and git diff in bytes
+# Default: 1,000,000 bytes (1MB)
+# Increase this value if you need to handle very large diffs
+# max_prompt_size = 1000000
+"#;
+
 /// Load configuration from a TOML file
 ///
 /// # Arguments

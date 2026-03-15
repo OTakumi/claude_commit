@@ -3,6 +3,33 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+/// Get the root directory of the current git repository
+///
+/// # Returns
+///
+/// * `Result<PathBuf>` - Absolute path to the git repository root
+///
+/// # Errors
+///
+/// * Not in a git repository
+/// * Git command fails
+pub fn get_git_root() -> Result<PathBuf> {
+    let output = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .context("Failed to execute git command")?;
+
+    if !output.status.success() {
+        anyhow::bail!(
+            "Failed to get git root: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(PathBuf::from(path))
+}
+
 /// Get git diff from the staging area
 ///
 /// Executes `git diff --cached` to retrieve all staged changes.
@@ -115,7 +142,40 @@ pub fn write_commit_message(message: &str) -> Result<String> {
 /// ```
 pub fn run_git_commit(msg_file: &str) -> Result<()> {
     let status = Command::new("git")
-        .args(["commit", "-v", "-e", "-F", msg_file, "--no-verify"])
+        .args(["commit", "-v", "-e", "-F", msg_file])
+        .status()
+        .context("Failed to execute git commit command")?;
+
+    if !status.success() {
+        anyhow::bail!(
+            "Git commit command failed with exit code: {:?}",
+            status.code()
+        );
+    }
+
+    Ok(())
+}
+
+/// Execute git commit without opening an editor
+///
+/// Commits directly using the generated message file without
+/// prompting the user to review in an editor.
+///
+/// # Arguments
+///
+/// * `msg_file` - Path to the commit message file
+///
+/// # Returns
+///
+/// * `Result<()>` - Ok if commit succeeds, Err otherwise
+///
+/// # Errors
+///
+/// * Failed to execute git command
+/// * Commit validation failed (e.g. commit-msg hook)
+pub fn run_git_commit_direct(msg_file: &str) -> Result<()> {
+    let status = Command::new("git")
+        .args(["commit", "-F", msg_file])
         .status()
         .context("Failed to execute git commit command")?;
 
