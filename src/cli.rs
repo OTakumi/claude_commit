@@ -48,8 +48,9 @@ pub fn run_init(output_path: Option<&str>, force: bool) -> Result<()> {
     let path = match output_path {
         Some(p) => PathBuf::from(p),
         None => {
-            let home = std::env::var("HOME")
-                .map_err(|_| anyhow::anyhow!("$HOME is not set. Use --output to specify a path."))?;
+            let home = std::env::var("HOME").map_err(|_| {
+                anyhow::anyhow!("$HOME is not set. Use --output to specify a path.")
+            })?;
             PathBuf::from(home)
                 .join(".config")
                 .join("claude_commit")
